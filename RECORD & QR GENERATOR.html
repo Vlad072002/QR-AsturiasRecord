@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Certificate & QR Code Generator</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- QR Code Generation Library -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <style>
+        /* Custom styles for better aesthetics */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .container {
+            max-width: 600px;
+        }
+        #qrcode img {
+            margin: 0 auto;
+            border: 4px solid white;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .btn-glow:hover {
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.5);
+        }
+        /* Styles for the modal */
+        .modal-overlay {
+            transition: opacity 0.3s ease;
+        }
+        .modal-container {
+            transition: transform 0.3s ease;
+        }
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+
+    <div class="container bg-white p-6 sm:p-8 rounded-xl shadow-lg w-full relative">
+        <!-- Settings Icon -->
+        <div class="absolute top-4 right-4">
+            <button id="settingsBtn" class="text-gray-400 hover:text-gray-600 transition">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+            </button>
+        </div>
+
+        <div class="text-center mb-6">
+            <h1 class="text-2xl sm:text-3xl font-bold text-gray-800">Certificate Generator</h1>
+            <p class="text-gray-500 mt-1">Asturias Barangay Records</p>
+        </div>
+
+        <!-- Form for Data Input -->
+        <div class="space-y-4">
+            <div>
+                <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                <input type="text" id="name" placeholder="e.g., Juan Dela Cruz" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 transition">
+            </div>
+
+            <div>
+                <div class="flex justify-between items-center mb-1">
+                     <label for="certificateType" class="block text-sm font-medium text-gray-700">Kind of Certificate</label>
+                     <button id="addCertTypeBtn" class="text-sm text-blue-600 hover:text-blue-800 font-semibold">+ Add New</button>
+                </div>
+                <select id="certificateType" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 transition">
+                    <!-- Options are now populated by JS -->
+                </select>
+            </div>
+
+            <!-- Auto-generated Information -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                <div class="bg-gray-50 p-3 rounded-md">
+                    <p class="font-medium text-gray-600">Reference Number:</p>
+                    <p id="refNumber" class="text-lg font-semibold text-gray-900"></p>
+                </div>
+                <div class="bg-gray-50 p-3 rounded-md">
+                    <p class="font-medium text-gray-600">Date:</p>
+                    <p id="currentDate" class="text-lg font-semibold text-gray-900"></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Error Message Display -->
+        <div id="error-message" class="text-red-600 font-medium text-center my-4 h-5"></div>
+        <div id="success-message" class="text-green-600 font-medium text-center my-4 h-5"></div>
+
+
+        <!-- Action Buttons -->
+        <div class="mt-6">
+            <button id="generateBtn" class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-300 btn-glow">
+                Generate QR Code
+            </button>
+        </div>
+
+        <!-- QR Code Display and Actions -->
+        <div id="qr-result" class="mt-6 text-center hidden">
+            <h3 class="text-lg font-semibold text-gray-800 mb-2">Generated QR Code</h3>
+            <div id="qrcode" class="flex justify-center p-2 bg-gray-100 rounded-lg"></div>
+            <div class="mt-4 flex flex-col sm:flex-row gap-3 justify-center">
+                 <button id="copyBtn" class="w-full sm:w-auto bg-green-500 text-white font-bold py-2 px-5 rounded-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-400 transition">
+                    Copy QR Code
+                </button>
+                <button id="downloadBtn" class="w-full sm:w-auto bg-gray-700 text-white font-bold py-2 px-5 rounded-md hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-600 transition">
+                    Download Records
+                </button>
+            </div>
+             <div id="copy-feedback" class="text-green-600 font-medium text-center mt-3 h-5"></div>
+        </div>
+    </div>
+    
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center p-4 hidden modal-overlay">
+        <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-lg max-h-full overflow-y-auto modal-container transform scale-95">
+            <div class="flex justify-between items-center border-b pb-3 mb-4">
+                <h2 class="text-2xl font-bold text-gray-800">Settings</h2>
+                <button id="closeSettingsBtn" class="text-gray-500 hover:text-gray-800">
+                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            
+            <div class="space-y-6">
+                <!-- Reference Number Settings -->
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-700 mb-2">Reference Number Range</h3>
+                    <div class="flex items-center space-x-2">
+                        <input type="number" id="refStart" placeholder="Start" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                        <span class="text-gray-500">-</span>
+                        <input type="number" id="refEnd" placeholder="End" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                    </div>
+                </div>
+
+                <!-- File Name Settings -->
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-700 mb-2">Download File Name</h3>
+                    <input type="text" id="fileName" placeholder="Records.txt" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                </div>
+                
+                 <button id="saveSettingsBtn" class="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none">Save Settings</button>
+                 <div id="settings-feedback" class="font-medium text-center h-5 mt-2"></div>
+                 
+                 <!-- **NEW** Manage Certificate Types -->
+                <div class="border-t pt-4">
+                     <h3 class="text-lg font-semibold text-gray-700 mb-2">Manage Certificate Types</h3>
+                     <div id="cert-type-list" class="space-y-2 max-h-40 overflow-y-auto bg-gray-50 p-3 rounded-md">
+                         <!-- Dynamically populated list -->
+                     </div>
+                </div>
+
+                <!-- Certificate Report -->
+                <div class="border-t pt-4">
+                     <h3 class="text-lg font-semibold text-gray-700 mb-2">Certificate Report</h3>
+                     <div id="reportContainer" class="space-y-1 text-sm bg-gray-50 p-3 rounded-md"></div>
+                     <div class="flex space-x-2 mt-3">
+                         <button id="downloadReportBtn" class="w-full bg-green-600 text-white font-bold py-2 px-4 rounded-md hover:bg-green-700 focus:outline-none">Download Report</button>
+                         <button id="resetReportBtn" class="w-full bg-red-600 text-white font-bold py-2 px-4 rounded-md hover:bg-red-700 focus:outline-none">Reset Counting</button>
+                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Password Modal -->
+    <div id="passwordModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm">
+             <h3 class="text-lg font-semibold text-gray-800 mb-4">Enter Password to Reset</h3>
+             <input type="password" id="passwordInput" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" placeholder="Password">
+             <div id="password-feedback" class="text-red-600 font-medium text-center h-5 mt-2"></div>
+             <div class="flex justify-end space-x-3 mt-4">
+                <button id="cancelResetBtn" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">Cancel</button>
+                <button id="confirmResetBtn" class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">Confirm Reset</button>
+             </div>
+        </div>
+    </div>
+    
+    <!-- **NEW** Add Certificate Type Modal -->
+    <div id="addCertTypeModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm">
+             <h3 class="text-lg font-semibold text-gray-800 mb-4">Add New Certificate Type</h3>
+             <input type="text" id="newCertTypeInput" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" placeholder="e.g., Certificate of Residency">
+             <div id="add-cert-feedback" class="text-red-600 font-medium text-center h-5 mt-2"></div>
+             <div class="flex justify-end space-x-3 mt-4">
+                <button id="cancelAddCertBtn" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">Cancel</button>
+                <button id="saveNewCertBtn" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Save</button>
+             </div>
+        </div>
+    </div>
+    
+    <!-- **NEW** Confirmation Modal -->
+     <div id="confirmModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm text-center">
+             <p id="confirmModalText" class="text-lg text-gray-800 mb-4"></p>
+             <div class="flex justify-center space-x-4">
+                <button id="confirmCancel" class="px-6 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">Cancel</button>
+                <button id="confirmAction" class="px-6 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">Confirm</button>
+             </div>
+        </div>
+    </div>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Main App DOM Elements
+            const nameInput = document.getElementById('name');
+            const certificateTypeSelect = document.getElementById('certificateType');
+            const refNumberDisplay = document.getElementById('refNumber');
+            const currentDateDisplay = document.getElementById('currentDate');
+            const generateBtn = document.getElementById('generateBtn');
+            const qrResultDiv = document.getElementById('qr-result');
+            const qrcodeContainer = document.getElementById('qrcode');
+            const copyBtn = document.getElementById('copyBtn');
+            const downloadBtn = document.getElementById('downloadBtn');
+            const errorMessageDiv = document.getElementById('error-message');
+            const successMessageDiv = document.getElementById('success-message');
+            const copyFeedbackDiv = document.getElementById('copy-feedback');
+
+            // Settings Modal DOM Elements
+            const settingsBtn = document.getElementById('settingsBtn');
+            const settingsModal = document.getElementById('settingsModal');
+            const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+            const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+            const refStartInput = document.getElementById('refStart');
+            const refEndInput = document.getElementById('refEnd');
+            const fileNameInput = document.getElementById('fileName');
+            const settingsFeedback = document.getElementById('settings-feedback');
+            const reportContainer = document.getElementById('reportContainer');
+            const downloadReportBtn = document.getElementById('downloadReportBtn');
+            const resetReportBtn = document.getElementById('resetReportBtn');
+            
+            // Password Modal
+            const passwordModal = document.getElementById('passwordModal');
+            const passwordInput = document.getElementById('passwordInput');
+            const confirmResetBtn = document.getElementById('confirmResetBtn');
+            const cancelResetBtn = document.getElementById('cancelResetBtn');
+            const passwordFeedback = document.getElementById('password-feedback');
+            
+            // Add/Remove Certificate Modals & Elements
+            const addCertTypeBtn = document.getElementById('addCertTypeBtn');
+            const addCertTypeModal = document.getElementById('addCertTypeModal');
+            const newCertTypeInput = document.getElementById('newCertTypeInput');
+            const saveNewCertBtn = document.getElementById('saveNewCertBtn');
+            const cancelAddCertBtn = document.getElementById('cancelAddCertBtn');
+            const addCertFeedback = document.getElementById('add-cert-feedback');
+            const certTypeListContainer = document.getElementById('cert-type-list');
+            
+            // Generic Confirmation Modal
+            const confirmModal = document.getElementById('confirmModal');
+            const confirmModalText = document.getElementById('confirmModalText');
+            const confirmActionBtn = document.getElementById('confirmAction');
+            const confirmCancelBtn = document.getElementById('confirmCancel');
+            let confirmCallback = () => {};
+            
+            // --- Global State ---
+            let settings = {};
+            let currentRefCounter;
+            
+            // --- Helper Functions ---
+            function toggleModal(modal, show) {
+                 if (show) {
+                    modal.classList.remove('hidden');
+                    setTimeout(() => {
+                       modal.querySelector('.modal-overlay')?.classList.remove('opacity-0');
+                       modal.querySelector('.modal-container')?.classList.remove('scale-95');
+                    }, 10);
+                } else {
+                    modal.querySelector('.modal-overlay')?.classList.add('opacity-0');
+                    modal.querySelector('.modal-container')?.classList.add('scale-95');
+                    setTimeout(() => modal.classList.add('hidden'), 300);
+                }
+            }
+
+            function showConfirmModal(text, callback) {
+                confirmModalText.textContent = text;
+                confirmCallback = callback;
+                toggleModal(confirmModal, true);
+            }
+            
+            confirmActionBtn.addEventListener('click', () => {
+                if(typeof confirmCallback === 'function') {
+                    confirmCallback();
+                }
+                toggleModal(confirmModal, false);
+            });
+            confirmCancelBtn.addEventListener('click', () => toggleModal(confirmModal, false));
+            
+            function downloadTextFile(content, fileName) {
+                const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = fileName;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+            
+            // --- Certificate Type Management ---
+            const defaultCertTypes = [
+                "Barangay Indigency", "Certificate of Attestation", "Barangay Clearance",
+                "Barangay Business Permit", "Certification of Guardianship", "First time JobSeeker",
+                "Certificate of Low income", "Certificate of Solo Parent", "Certificate of Unemployment",
+                "Certificate of Electric Connection", "Death Certificate"
+            ];
+            
+            function getCertTypes() {
+                return JSON.parse(localStorage.getItem('certificateTypes')) || defaultCertTypes;
+            }
+
+            function saveCertTypes(types) {
+                localStorage.setItem('certificateTypes', JSON.stringify(types));
+                populateCertificateTypes();
+            }
+
+            function populateCertificateTypes() {
+                const types = getCertTypes();
+                certificateTypeSelect.innerHTML = '<option value="">-- Select a Certificate --</option>';
+                certTypeListContainer.innerHTML = '';
+                
+                types.forEach(type => {
+                    // Populate main dropdown
+                    const option = new Option(type, type);
+                    certificateTypeSelect.add(option);
+                    
+                    // Populate management list in settings
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = 'flex justify-between items-center bg-white p-2 rounded-md shadow-sm';
+                    itemDiv.innerHTML = `
+                        <span>${type}</span>
+                        <button data-type-to-remove="${type}" class="remove-cert-btn text-red-500 hover:text-red-700">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                        </button>
+                    `;
+                    certTypeListContainer.appendChild(itemDiv);
+                });
+            }
+            
+            addCertTypeBtn.addEventListener('click', () => {
+                newCertTypeInput.value = '';
+                addCertFeedback.textContent = '';
+                toggleModal(addCertTypeModal, true);
+            });
+            
+            cancelAddCertBtn.addEventListener('click', () => toggleModal(addCertTypeModal, false));
+            
+            saveNewCertBtn.addEventListener('click', () => {
+                const newType = newCertTypeInput.value.trim();
+                const types = getCertTypes();
+                if (!newType) {
+                    addCertFeedback.textContent = 'Please enter a certificate name.';
+                    return;
+                }
+                if (types.map(t => t.toLowerCase()).includes(newType.toLowerCase())) {
+                    addCertFeedback.textContent = 'This certificate type already exists.';
+                    return;
+                }
+                types.push(newType);
+                saveCertTypes(types);
+                toggleModal(addCertTypeModal, false);
+            });
+            
+            certTypeListContainer.addEventListener('click', (e) => {
+                const removeBtn = e.target.closest('.remove-cert-btn');
+                if (removeBtn) {
+                    const typeToRemove = removeBtn.dataset.typeToRemove;
+                    showConfirmModal(`Are you sure you want to remove "${typeToRemove}"? This cannot be undone.`, () => {
+                        let types = getCertTypes();
+                        types = types.filter(t => t !== typeToRemove);
+                        saveCertTypes(types);
+                    });
+                }
+            });
+
+
+            // --- Settings Management ---
+            function loadSettings() {
+                const storedSettings = JSON.parse(localStorage.getItem('certGenSettings')) || {};
+                settings = {
+                    refStart: storedSettings.refStart || 20251000,
+                    refEnd: storedSettings.refEnd || 20259999,
+                    fileName: storedSettings.fileName || 'Record Certificate Asturias.txt'
+                };
+                refStartInput.value = settings.refStart;
+                refEndInput.value = settings.refEnd;
+                fileNameInput.value = settings.fileName;
+            }
+
+            function saveSettings() {
+                settingsFeedback.textContent = '';
+                settingsFeedback.classList.remove('text-red-600', 'text-green-600');
+
+                const startVal = parseInt(refStartInput.value);
+                const endVal = parseInt(refEndInput.value);
+
+                if (isNaN(startVal) || isNaN(endVal)) {
+                    settingsFeedback.textContent = "Error: Please enter valid numbers for the range.";
+                    settingsFeedback.classList.add('text-red-600'); return;
+                }
+                if (startVal < 0 || endVal < 0) {
+                    settingsFeedback.textContent = "Error: Reference numbers cannot be negative.";
+                    settingsFeedback.classList.add('text-red-600'); return;
+                }
+                if (startVal >= endVal) {
+                    settingsFeedback.textContent = "Error: Start number must be less than the end number.";
+                    settingsFeedback.classList.add('text-red-600'); return;
+                }
+                
+                const newSettings = { refStart: startVal, refEnd: endVal, fileName: fileNameInput.value.trim() || 'Record Certificate Asturias.txt' };
+                localStorage.setItem('certGenSettings', JSON.stringify(newSettings));
+                settings = newSettings;
+                
+                settingsFeedback.textContent = "Settings saved!";
+                settingsFeedback.classList.add('text-green-600');
+                
+                loadNextRefNumber();
+                
+                setTimeout(() => {
+                    settingsFeedback.textContent = "";
+                    settingsFeedback.classList.remove('text-green-600');
+                }, 3000);
+            }
+            
+            settingsBtn.addEventListener('click', () => {
+                toggleModal(settingsModal, true);
+                generateReport();
+            });
+            closeSettingsBtn.addEventListener('click', () => toggleModal(settingsModal, false));
+            saveSettingsBtn.addEventListener('click', saveSettings);
+
+            // --- Reference Number Logic ---
+            function loadNextRefNumber() {
+                let lastRef = localStorage.getItem('lastRefCounter');
+                let nextRef = lastRef ? parseInt(lastRef, 10) + 1 : settings.refStart;
+
+                currentRefCounter = Math.max(nextRef, settings.refStart);
+                
+                if (currentRefCounter > settings.refEnd) {
+                    errorMessageDiv.textContent = `Reference number limit (${settings.refEnd}) reached. Please update in settings.`;
+                    generateBtn.disabled = true;
+                    generateBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                } else {
+                    errorMessageDiv.textContent = '';
+                    generateBtn.disabled = false;
+                    generateBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                }
+                refNumberDisplay.textContent = currentRefCounter;
+            }
+
+            // --- Date Logic ---
+            const today = new Date();
+            const formattedDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+            currentDateDisplay.textContent = formattedDate;
+
+            // --- Main Generate Button Logic ---
+            generateBtn.addEventListener('click', () => {
+                errorMessageDiv.textContent = '';
+                copyFeedbackDiv.textContent = '';
+
+                if (currentRefCounter > settings.refEnd) {
+                    errorMessageDiv.textContent = `Reference limit reached. Update in settings.`;
+                    return;
+                }
+                
+                const name = nameInput.value.trim();
+                const certificateType = certificateTypeSelect.value;
+                if (!name || !certificateType) {
+                    errorMessageDiv.textContent = 'Please fill in the Name and select a Certificate Type.';
+                    return;
+                }
+
+                const qrData = `Name: ${name}\nReference Number: ${currentRefCounter}\nCertificate Type: ${certificateType}\nDate: ${formattedDate}`;
+
+                qrcodeContainer.innerHTML = '';
+                new QRCode(qrcodeContainer, { text: qrData, width: 200, height: 200, colorDark: "#000000", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.H });
+
+                qrResultDiv.classList.remove('hidden');
+                
+                saveRecordToLocalStorage({ name, refNumber: currentRefCounter, certificateType, date: formattedDate });
+                localStorage.setItem('lastRefCounter', currentRefCounter);
+                loadNextRefNumber();
+
+                nameInput.value = '';
+                certificateTypeSelect.value = '';
+            });
+            
+            // --- Record Management ---
+            function getRecords() { return JSON.parse(localStorage.getItem('certificateRecords')) || []; }
+            function saveRecordToLocalStorage(record) {
+                let records = getRecords();
+                records.push(record);
+                localStorage.setItem('certificateRecords', JSON.stringify(records));
+            }
+
+            // --- Download/Copy Buttons ---
+            downloadBtn.addEventListener('click', () => {
+                const records = getRecords();
+                if (records.length === 0) {
+                    copyFeedbackDiv.textContent = "No records to download.";
+                    setTimeout(() => copyFeedbackDiv.textContent = '', 3000);
+                    return;
+                }
+                let fileContent = "Certificate Records - Asturias\n=================================\n\n";
+                records.forEach(r => {
+                    fileContent += `Name: ${r.name}\nReference Number: ${r.refNumber}\nCertificate Type: ${r.certificateType}\nDate: ${r.date}\n---------------------------------\n\n`;
+                });
+                downloadTextFile(fileContent, settings.fileName);
+            });
+
+            copyBtn.addEventListener('click', () => {
+                const canvas = qrcodeContainer.querySelector('canvas');
+                if (!canvas) { copyFeedbackDiv.textContent = "QR code not found."; return; }
+                canvas.toBlob(async (blob) => {
+                    try {
+                        await navigator.clipboard.write([ new ClipboardItem({ 'image/png': blob }) ]);
+                        copyFeedbackDiv.textContent = "QR Code copied to clipboard!";
+                    } catch (err) {
+                        console.error('Failed to copy QR Code: ', err);
+                        copyFeedbackDiv.textContent = "Failed to copy. Please try again.";
+                    }
+                });
+                setTimeout(() => copyFeedbackDiv.textContent = '', 3000);
+            });
+
+            // --- Report & Reset Logic ---
+            function generateReport() {
+                const records = getRecords(); 
+                const counts = {};
+                const allTypes = getCertTypes();
+                allTypes.forEach(type => counts[type] = 0);
+                records.forEach(record => { if (record.certificateType in counts) { counts[record.certificateType]++; } });
+                reportContainer.innerHTML = ''; 
+                let reportContent = '';
+                for (const [type, count] of Object.entries(counts)) {
+                    reportContainer.innerHTML += `<div class="flex justify-between"><span>${type}:</span><span class="font-semibold">${count}</span></div>`;
+                    reportContent += `${type}: ${count}\n`;
+                }
+                reportContainer.innerHTML += `<div class="flex justify-between font-bold border-t mt-2 pt-2"><span>TOTAL:</span><span>${records.length}</span></div>`;
+                return `Certificate Report - Asturias\n============================\n${reportContent}\nTOTAL: ${records.length}`;
+            }
+            downloadReportBtn.addEventListener('click', () => {
+                const reportText = generateReport();
+                downloadTextFile(reportText, 'Report Certificate Asturias.txt');
+            });
+            
+            resetReportBtn.addEventListener('click', () => {
+                passwordFeedback.textContent = '';
+                passwordInput.value = '';
+                toggleModal(passwordModal, true);
+            });
+
+            cancelResetBtn.addEventListener('click', () => toggleModal(passwordModal, false));
+            
+            confirmResetBtn.addEventListener('click', () => {
+                if (passwordInput.value === 'KapLolita') {
+                    localStorage.removeItem('certificateRecords');
+                    localStorage.removeItem('lastRefCounter');
+                    
+                    toggleModal(passwordModal, false);
+                    toggleModal(settingsModal, false);
+                    
+                    loadSettings();
+                    loadNextRefNumber();
+                    
+                    successMessageDiv.textContent = 'All records have been reset.';
+                    setTimeout(() => successMessageDiv.textContent = '', 4000);
+
+                } else {
+                    passwordFeedback.textContent = 'Incorrect password. Please try again.';
+                }
+            });
+            
+            // --- Initial Load ---
+            loadSettings();
+            populateCertificateTypes();
+            loadNextRefNumber();
+        });
+    </script>
+</body>
+</html>
